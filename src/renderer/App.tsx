@@ -8,8 +8,7 @@ interface ChatMessage {
 
 const App: React.FC = () => {
   const [serverUrl, setServerUrl] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [apiKey, setApiKey] = useState('');
   const [token, setToken] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentMsg, setCurrentMsg] = useState('');
@@ -39,24 +38,14 @@ const App: React.FC = () => {
     fetchHistory();
   }, [serverUrl, token]);
 
-  const login = async () => {
-  setError(null);
-  try {
-    const res = await fetch(`${serverUrl}/api/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setToken(data.token);
-    } else {
-      setError('Login failed');
+  const connect = () => {
+    // When using an API key, simply set the token to the provided key.
+    setError(null);
+    if (!apiKey.trim()) {
+      setError('API key required');
+      return;
     }
-  } catch (err) {
-    console.error(err);
-    setError('Network error');
-  }
+    setToken(apiKey.trim());
   };
 
   const sendMessage = async () => {
@@ -96,7 +85,7 @@ const App: React.FC = () => {
   if (!token) {
     return (
       <div style={{ padding: '2rem' }}>
-        <h2>Login to OpenWebUI</h2>
+        <h2>Connect to OpenWebUI</h2>
         <div>
           <input
             placeholder="Server URL (e.g., https://openwebui.example.com)"
@@ -105,19 +94,12 @@ const App: React.FC = () => {
             style={{ width: '100%', marginBottom: '0.5rem' }}
           />
           <input
-            placeholder="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            placeholder="API Key"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
             style={{ width: '100%', marginBottom: '0.5rem' }}
           />
-          <input
-            placeholder="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ width: '100%', marginBottom: '0.5rem' }}
-          />
-          <button onClick={login}>Login</button>
+          <button onClick={connect}>Connect</button>
           {error && <p style={{ color: 'red' }}>{error}</p>}
         </div>
       </div>
