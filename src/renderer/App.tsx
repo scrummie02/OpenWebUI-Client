@@ -14,20 +14,40 @@ const App: React.FC = () => {
   const [currentMsg, setCurrentMsg] = useState('');
   const [error, setError] = useState<string | null>(null);
 
+  // Load saved credentials on mount
+  useEffect(() => {
+    const savedUrl = localStorage.getItem('serverUrl') || '';
+    const savedKey = localStorage.getItem('apiKey') || '';
+    if (savedUrl) setServerUrl(savedUrl);
+    if (savedKey) {
+      setApiKey(savedKey);
+      setToken(savedKey);
+    }
+  }, []);
+
+  // Helper to compute API base path
+  const getApiBase = () => {
+    const trimmed = serverUrl.replace(/\/+$/, '');
+    return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+  };
+
   // Fetch chat history once authenticated.
   useEffect(() => {
     if (!token) return;
     const fetchHistory = async () => {
       try {
-        const res = await fetch(`${serverUrl}/api/chats`, {
+        const res = await fetch(`${getApiBase()}/chats`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
         });
-        if (res.ok) {
+        const contentType = res.headers.get('content-type') || '';
+        if (res.ok && contentType.includes('application/json')) {
           const data = await res.json();
           setMessages(data.messages || []);
         } else {
+          const text = await res.text();
+          console.warn('Unexpected response:', text);
           setError('Failed to fetch chat history');
         }
       } catch (err) {
@@ -38,14 +58,19 @@ const App: React.FC = () => {
     fetchHistory();
   }, [serverUrl, token]);
 
+  // Connect using API key
   const connect = () => {
-    // When using an API key, simply set the token to the provided key.
     setError(null);
-    if (!apiKey.trim()) {
-      setError('API key required');
+    const key = apiKey.trim();
+    const url = serverUrl.trim();
+    if (!key || !url) {
+      setError('Server URL and API key required');
       return;
     }
-    setToken(apiKey.trim());
+    // Save credentials locally (not exposed publicly)
+    localStorage.setItem('serverUrl', url);
+    localStorage.setItem('apiKey', key);
+    setToken(key);
   };
 
   const sendMessage = async () => {
@@ -56,7 +81,7 @@ const App: React.FC = () => {
     setMessages((prev) => [...prev, newMsg]);
     setCurrentMsg('');
     try {
-      const res = await fetch(`${serverUrl}/api/message`, {
+      const res = await fetch(`${getApiBase()}/message`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -64,9 +89,9 @@ const App: React.FC = () => {
         },
         body: JSON.stringify({ content: newMsg.text })
       });
-      if (res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
         const data = await res.json();
-        // Append assistant messages to chat.
         const assistantMessages: ChatMessage[] = (data.messages || []).map((msg: any) => ({
           id: msg.id || Date.now().toString(),
           text: msg.text || msg.content || '',
@@ -74,6 +99,8 @@ const App: React.FC = () => {
         }));
         setMessages((prev) => [...prev, ...assistantMessages]);
       } else {
+        const text = await res.text();
+        console.warn('Unexpected response:', text);
         setError('Failed to send message');
       }
     } catch (err) {
@@ -97,6 +124,7 @@ const App: React.FC = () => {
             placeholder="API Key"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
+            type="password"
             style={{ width: '100%', marginBottom: '0.5rem' }}
           />
           <button onClick={connect}>Connect</button>
