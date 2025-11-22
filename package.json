@@ -4,9 +4,10 @@
   "description": "Native Windows client for OpenWebUI built with React and Electron",
   "main": "dist/main.js",
   "scripts": {
-    "start": "webpack --mode development && electron .",
-    "build": "webpack --mode production"
-  },
+    "    "build-main": "tsc --outDir dist",
+    "start": "npm run build-main && webpack --mode development && electron .",
+    "build": "npm run build-main && webpack --mode production"
+      },
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
